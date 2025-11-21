@@ -1,0 +1,149 @@
+{% extends "ogrenme/base.html" %}
+
+{% block title %}Kişisel Kontrol Paneli{% endblock %}
+
+{% block content %}
+
+<style>
+    /* Boyutları kullanıcı tarafından ayarlanabilir yapmak için temel CSS */
+    .resizable-panel {
+        height: 80vh; /* Ekran yüksekliğinin %80'i */
+        overflow-y: hidden; 
+        display: flex;
+        flex-direction: column;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+    }
+
+    .chat-body {
+        flex-grow: 1; /* Chat alanının form dışındaki tüm alanı kaplamasını sağla */
+        overflow-y: auto; /* Chat geçmişi için dikey kaydırma */
+        padding: 15px;
+        display: flex; /* İçerik sıralamasını ters çevirmek için flex kullan */
+        flex-direction: column-reverse; /* En yeni mesajı alta almak için */
+    }
+
+    /* Kaydırma çubuğunu gizle (isteğe bağlı) */
+    .chat-body::-webkit-scrollbar { display: none; } 
+    .task-list-group { flex-grow: 1; overflow-y: auto; } /* Listeyi doldur ve kaydırılabilir yap */
+</style>
+
+<h1 class="mb-4 text-center text-primary">Merhaba, {{ user.username }}!</h1>
+
+<div class="row g-3">
+    
+    <div class="col-md-4">
+        <div class="card shadow resizable-panel">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">🧠 Yapay Zeka Chat (Serbest)</h5>
+            </div>
+            
+            <div class="chat-body">
+                {% for chat in chat_gecmisi %}
+                    <div class="alert alert-primary mb-2 ms-5 py-2">
+                        <small class="text-muted d-block">{{ user.username }}</small>
+                        {{ chat.kullanici_mesaji|linebreaksbr }}
+                    </div>
+                    <div class="alert alert-secondary mb-2 me-5 py-2">
+                        <small class="text-muted d-block">AI</small>
+                        {{ chat.ai_cevabi|linebreaksbr }}
+                    </div>
+                {% empty %}
+                    <p class="text-center text-muted mt-auto">Sohbet geçmişiniz boş. Bir soruyla başlayın!</p>
+                {% endfor %}
+            </div>
+
+            <div class="card-footer bg-light p-2">
+                <div class="text-center mb-2">
+                     <a href="{% url 'yeni_sohbet_baslat' %}" class="btn btn-sm btn-outline-secondary w-100">
+                        Yeni Sohbet Başlat
+                    </a>
+                </div>
+                
+                <form method="POST" action="{% url 'serbest_chat' %}" class="d-flex">
+                    {% csrf_token %}
+                    <input 
+                        type="text" 
+                        name="mesaj" 
+                        class="form-control form-control-sm me-2" 
+                        placeholder="Mesajınızı Yazın..." 
+                        required
+                    >
+                    <button type="submit" class="btn btn-primary btn-sm">Gönder</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow resizable-panel">
+            
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">📋 Kişiselleştirilmiş Çalışma Planı</h5>
+            </div>
+            
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title text-center text-primary">Görevler</h5>
+                <p class="card-text text-muted text-center small mb-3">Yapay zeka, ilerlemenize göre dinamik bir liste oluşturur.</p>
+
+                <ul class="list-group list-group-flush task-list-group">
+                    {% if calisma_plani %}
+                        {% for gorev in calisma_plani %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center p-2">
+                                <span class="badge 
+                                    {% if gorev.gorev_tipi == 'SORU' %}bg-success{% elif gorev.gorev_tipi == 'OKUMA' %}bg-warning text-dark{% elif gorev.gorev_tipi == 'OZET' %}bg-info{% else %}bg-secondary{% endif %} 
+                                    me-2" style="min-width: 60px;">
+                                    {{ gorev.get_gorev_tipi_display }} 
+                                </span>
+                                
+                                <span class="text-truncate fw-bold" title="{{ gorev.gorev_aciklama }}">
+                                    {{ gorev.gorev_baslik }}
+                                </span>
+                                
+                                <span class="badge bg-light text-secondary ms-auto">
+                                    {{ gorev.get_durum_display }}
+                                </span>
+                            </li>
+                        {% endfor %}
+                    {% else %}
+                        <li class="list-group-item text-center text-muted">
+                            Aktif çalışma planınız bulunmamaktadır.
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+
+            <div class="card-footer text-center">
+                <a href="{% url 'plan_uret' %}" class="btn btn-sm btn-outline-primary w-100">Planı Yenile / Ayarla</a>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="col-md-4">
+        <div class="card shadow resizable-panel">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">📚 Odaklanmış Çalışma / Sosyal</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="text-primary">Odaklanma</h6>
+                <p>Şu anki ilerlemenize göre yeni bir soru için hemen başlayın:</p>
+                <a href="{% url 'test_ai' %}" class="btn btn-success w-100 mb-4">Yeni Soru Çöz (Matematik)</a>
+                
+                <h6 class="text-danger">Sosyal ve Chat Geçişi</h6>
+                <p class="text-muted small">Burada arkadaş ekleme, hızlı mesajlaşma gibi sosyal özellikler yer alacak (Arkadaş kodu sistemi).</p>
+                <form method="POST" action=""> 
+                    <div class="input-group mb-3">
+                        {% csrf_token %}
+                        <input type="text" class="form-control" placeholder="Arkadaş Kodu">
+                        <button class="btn btn-outline-secondary" type="button">Ekle</button>
+                    </div>
+                </form>
+                <a href="#" class="btn btn-outline-dark w-100 disabled">Hızlı Chat Sayfasına Git</a>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

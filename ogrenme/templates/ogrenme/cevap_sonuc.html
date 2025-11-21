@@ -1,0 +1,25 @@
+{% extends "ogrenme/base.html" %}
+
+{% block title %}Cevap Sonucu{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-lg">
+            <div class="card-header {% if is_dogru %}bg-success{% else %}bg-danger{% endif %} text-white">
+                <h3 class="mb-0">{% if is_dogru %}Tebrikler! 🎉{% else %}Üzgünüz! 🙁{% endif %}</h3>
+            </div>
+            <div class="card-body">
+                <h1 class="card-title">{{ geri_bildirim }}</h1>
+                <hr>
+                <p><b>Güncel İlerleme:</b></p>
+                <ul>
+                    <li>Çözülen Toplam Soru: <strong>{{ ilerleme.toplam_cozulen_soru }}</strong></li>
+                    <li>Doğru Cevap Sayısı: <strong>{{ ilerleme.dogru_cevap_sayisi }}</strong></li>
+                </ul>
+                <a href="{% url 'test_ai' %}" class="btn btn-primary btn-lg mt-3">Yeni Soru İste</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

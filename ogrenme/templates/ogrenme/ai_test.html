@@ -1,0 +1,35 @@
+{% extends "ogrenme/base.html" %}
+
+{% block title %}AI Testi (Soru Çözme){% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0">🤖 {{ ders_adi }} İçin Kişiselleştirilmiş Soru</h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Mevcut İlerlemeniz: **Seviye {{ ilerleme.seviye }}** | {{ ilerleme.cozulen_soru_sayisi }} soru çözüldü.</p>
+
+                <div class="alert alert-info">
+                    <h4 class="mb-3">Soru:</h4>
+                    <p>{{ soru_metni|linebreaksbr }}</p>
+                </div>
+
+                <form method="POST" action="{% url 'cevap_kontrol' %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="id_cevap" class="form-label fw-bold">Cevabınız:</label>
+                        <textarea class="form-control" id="id_cevap" name="cevap" rows="5" placeholder="Cevabınızı buraya yazın..." required></textarea>
+                    </div>
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-success btn-lg">Cevabı Kontrol Et ve İlerle</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

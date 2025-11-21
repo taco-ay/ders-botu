@@ -1,0 +1,17 @@
+{% extends "ogrenme/base.html" %}
+
+{% block title %}Ana Sayfa{% endblock %}
+
+{% block content %}
+<div class="p-5 mb-4 bg-light rounded-3 text-center">
+    <div class="container-fluid py-5">
+        <h1 class="display-5 fw-bold text-primary">Kişiselleştirilmiş Yapay Zeka Öğrenim Platformu</h1>
+        <p class="col-md-10 fs-4 mx-auto">İlerlemenizle orantılı, tam size özel sorularla öğrenme deneyiminizi en üst düzeye çıkarın. Yapay zeka seviyenizi anlık olarak takip eder!</p>
+        {% if user.is_authenticated %}
+            <a href="{% url 'test_ai' %}" class="btn btn-success btn-lg mt-3">Hemen Teste Başla</a>
+        {% else %}
+            <a href="{% url 'login' %}" class="btn btn-primary btn-lg mt-3">Giriş Yap / Kayıt Ol</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

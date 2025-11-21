@@ -1,0 +1,37 @@
+{% extends "ogrenme/base.html" %}
+
+{% block title %}Kayıt Ol{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-lg">
+            <div class="card-header bg-success text-white text-center">
+                <h3 class="mb-0">Hemen Kayıt Ol</h3>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    {% for field in form %}
+                        <div class="mb-3">
+                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                            {{ field }}
+                            {% for error in field.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                    
+                    <button type="submit" class="btn btn-success w-100 mt-3">Hesap Oluştur</button>
+                </form>
+
+                <hr>
+                <p class="text-center small">
+                    Zaten hesabın var mı? <a href="{% url 'login' %}">Giriş Yap</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

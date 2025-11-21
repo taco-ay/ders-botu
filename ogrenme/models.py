@@ -1,61 +1,110 @@
 # ogrenme/models.py
 
 from django.db import models
-from django.contrib.auth.models import User # Django'nun hazır kullanıcı modelini kullanıyoruz
+from django.contrib.auth.models import User
 
-# 1. Ders Modeli (Matematik, Almanca, Fizik vb.)
+# ----------------------------------------------------
+# 1. Ders Modeli (Courses)
+# ----------------------------------------------------
 class Ders(models.Model):
     isim = models.CharField(max_length=100, unique=True)
-    slug = models.SlugField(unique=True, null=True, blank=True) # URL için kolay isim
+    aciklama = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Ders"
+        verbose_name_plural = "Dersler"
 
     def __str__(self):
         return self.isim
 
-# 2. Kullanıcı İlerleme Modeli (Veri Toplama Noktası)
-# Bu model, kullanıcının belirli bir dersteki tüm istatistiklerini tutar.
+# ----------------------------------------------------
+# 2. Öğrenci İlerleme Modeli (Student Progress)
+# ----------------------------------------------------
 class OgrenciIlerleme(models.Model):
-    # Kullanıcı ile ilişki (auth.User modeline bağlanır)
-    kullanici = models.ForeignKey(User, on_delete=models.CASCADE)
-    
-    # Ders ile ilişki
+    kullanici = models.OneToOneField(User, on_delete=models.CASCADE)
     ders = models.ForeignKey(Ders, on_delete=models.CASCADE)
+    seviye = models.IntegerField(default=1)
+    cozulen_soru_sayisi = models.IntegerField(default=0)
+    son_aktiflik = models.DateTimeField(auto_now=True)
 
-    # İlerleme Metrikleri (Görseldeki Gereksinimler)
-    toplam_cozulen_soru = models.IntegerField(default=0) # "300 sorudan sonra" için
-    dogru_cevap_sayisi = models.IntegerField(default=0)
-    yanlis_cevap_sayisi = models.IntegerField(default=0)
-    
-    # Süre Metriği
-    toplam_calisma_suresi_dk = models.IntegerField(default=0) # "20 dk" için
-    
-    # Yapay Zeka Geri Bildirimi/Seviye
-    # Yapay zekanın kullanıcının seviyesini tuttuğu bir skor olabilir
-    ai_seviye_skoru = models.DecimalField(max_digits=5, decimal_places=2, default=0.0) 
-
-    son_guncelleme = models.DateTimeField(auto_now=True)
-
-    # Bir kullanıcının aynı dersten sadece tek bir ilerleme kaydı olabilir
     class Meta:
+        # Bir kullanıcı bir derste sadece bir ilerleme kaydına sahip olabilir
         unique_together = ('kullanici', 'ders')
+        verbose_name = "Öğrenci İlerleme Kaydı"
+        verbose_name_plural = "Öğrenci İlerleme Kayıtları"
 
     def __str__(self):
-        return f"{self.kullanici.username} - {self.ders.isim} İlerlemesi"
+        return f"{self.kullanici.username} - {self.ders.isim} (Seviye {self.seviye})"
 
-
-# 3. Cevap Kaydı Modeli (Geri Bildirim Döngüsü İçin)
-# Bu model, kullanıcının her bir soru/cevap etkileşimini kaydeder.
+# ----------------------------------------------------
+# 3. Cevap Kayıt Modeli (Answer History)
+# ----------------------------------------------------
 class CevapKaydi(models.Model):
     kullanici = models.ForeignKey(User, on_delete=models.CASCADE)
     ders = models.ForeignKey(Ders, on_delete=models.CASCADE)
-    
-    # Soruyu Yapay Zeka Ürettiği İçin, Sorunun Metnini Saklıyoruz
-    soru_metni = models.TextField()
+    soru_icerigi = models.TextField()
     kullanici_cevabi = models.TextField()
-    
-    # Yapay zekanın doğru/yanlış geri bildirimi için
-    is_dogru = models.BooleanField(default=False) 
-    cevap_tarihi = models.DateTimeField(auto_now_add=True)
-    
+    dogru_mu = models.BooleanField(default=False)
+    tarih = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Cevap Kaydı"
+        verbose_name_plural = "Cevap Kayıtları"
+
     def __str__(self):
-        durum = "Doğru" if self.is_dogru else "Yanlış"
-        return f"{self.kullanici.username} - {self.ders.isim} - {durum}"
+        return f"{self.kullanici.username} - {self.ders.isim} ({'Doğru' if self.dogru_mu else 'Yanlış'})"
+
+# ----------------------------------------------------
+# 4. AI Serbest Chat Modeli (Free Chat History)
+# ----------------------------------------------------
+class AISerbestChat(models.Model):
+    kullanici = models.ForeignKey(User, on_delete=models.CASCADE)
+    kullanici_mesaji = models.TextField()
+    ai_cevabi = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "AI Serbest Chat Kaydı"
+        verbose_name_plural = "AI Serbest Chat Kayıtları"
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.kullanici.username} - {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
+
+# ----------------------------------------------------
+# 5. Çalışma Planı Modeli (Study Plan)
+# ----------------------------------------------------
+class CalismaPlani(models.Model):
+    GOREV_DURUMLARI = [
+        ('YENI', 'Yeni Başladı'),
+        ('DEVAM', 'Devam Ediyor'),
+        ('TAMAM', 'Tamamlandı'),
+        ('ATLA', 'Atlandı'),
+    ]
+
+    GOREV_TIPI = [
+        ('SORU', 'Soru Çözme'),
+        ('OKUMA', 'Okuma'),
+        ('OZET', 'Özet Çıkarma'),
+        ('PROJE', 'Proje/Uygulama'),
+        ('DIGER', 'Diğer'),
+    ]
+
+    kullanici = models.ForeignKey(User, on_delete=models.CASCADE)
+    ders = models.ForeignKey(Ders, on_delete=models.CASCADE, null=True, blank=True)
+    
+    gorev_baslik = models.CharField(max_length=255)
+    gorev_aciklama = models.TextField(help_text="Yapay zeka tarafından üretilen detaylı görev açıklaması.")
+    gorev_tipi = models.CharField(max_length=5, choices=GOREV_TIPI, default='SORU')
+    
+    durum = models.CharField(max_length=5, choices=GOREV_DURUMLARI, default='YENI')
+    olusturma_tarihi = models.DateTimeField(auto_now_add=True)
+    bitis_tarihi = models.DateField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Çalışma Planı Görevi"
+        verbose_name_plural = "Çalışma Planı Görevleri"
+        ordering = ['durum', 'olusturma_tarihi']
+
+    def __str__(self):
+        return f"[{self.get_durum_display()}] {self.kullanici.username}: {self.gorev_baslik}"

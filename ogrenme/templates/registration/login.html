@@ -1,0 +1,50 @@
+{% extends "ogrenme/base.html" %}
+
+{% block title %}Giriş Yap{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-lg">
+            <div class="card-header bg-primary text-white text-center">
+                <h3 class="mb-0">Kullanıcı Girişi</h3>
+            </div>
+            <div class="card-body">
+                {% if form.errors %}
+                    <div class="alert alert-danger">
+                        Kullanıcı adınız veya şifreniz yanlış. Lütfen tekrar deneyin.
+                    </div>
+                {% endif %}
+
+                {% if next %}
+                    <p class="text-muted small">Bu sayfaya erişmek için giriş yapmalısınız.</p>
+                {% endif %}
+                
+                <form method="post" action="{% url 'login' %}">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.username.id_for_label }}" class="form-label">Kullanıcı Adı</label>
+                        {{ form.username }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.password.id_for_label }}" class="form-label">Şifre</label>
+                        {{ form.password }}
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success w-100 mt-2">Giriş Yap</button>
+                    
+                    <input type="hidden" name="next" value="{{ next }}" />
+                </form>
+
+                <hr>
+                <p class="text-center">
+                    <a href="#" class="text-primary">Şifremi Unuttum? (Geliştirilecek)</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

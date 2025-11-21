@@ -1,0 +1,36 @@
+{% extends "ogrenme/base.html" %}
+
+{% block title %}Cevap Geri Bildirimi{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header {% if is_correct %}bg-success{% else %}bg-danger{% endif %} text-white text-center">
+                {% if is_correct %}
+                    <h3>✅ Harika! Cevabınız doğru.</h3>
+                {% else %}
+                    <h3>❌ Başka bir deneme yapmalısınız. Yanlış cevap.</h3>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <h4 class="text-primary">Soru:</h4>
+                <p class="alert alert-secondary">{{ soru_metni|linebreaksbr }}</p>
+
+                <h4>Sizin Cevabınız:</h4>
+                <p class="alert alert-info">{{ kullanici_cevabi }}</p>
+
+                {% if not is_correct %}
+                    <h4 class="text-success">Doğru Cevap:</h4>
+                    <p class="alert alert-warning">{{ dogru_cevap }}</p>
+                {% endif %}
+                
+                <div class="text-center mt-4">
+                    <a href="{% url 'test_ai' %}" class="btn btn-primary btn-lg">Yeni Bir Soruya Geç</a>
+                    <a href="{% url 'home' %}" class="btn btn-secondary btn-lg">Kontrol Paneline Dön</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
