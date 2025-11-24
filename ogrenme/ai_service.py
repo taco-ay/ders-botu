@@ -59,19 +59,25 @@ def yapay_zeka_soru_uret(input_data, soru_tipi):
     
     if client is None:
         return f"Yapay Zeka Servisi şu anda kullanılamıyor (Client Hata Kodu)."
+        
 
     sistem_talimati = ""
     prompt_metni = ""
 
     if soru_tipi == "Odaklanmış Soru":
-        # input_data: {'seviye': 5, 'ders_adi': 'Matematik'}
         seviye = input_data['seviye']
         ders_adi = input_data['ders_adi']
+        # GÜNCEL VERİLERİ GÜVENLİ ŞEKİLDE AL
+        sinif = input_data.get('sinif', 'bilinmeyen') 
+        ulke = input_data.get('ulke', 'Türkiye')     
         
         sistem_talimati = SISTEM_TALIMATLARI_SORU_URET
+        
+        # PROMPT'U KİŞİSELLEŞTİREREK GÜNCELLE
         prompt_metni = (
-            f"{ders_adi} dersi için, seviye {seviye} bir öğrenciye çözmesi için orta zorlukta bir soru üret. "
-            f"Soru, öğrencinin konuya hakimiyetini ölçecek nitelikte olmalı. Soru ve cevabı JSON formatında döndür."
+            f"Aşağıdaki öğrenci verilerini dikkate alarak {ders_adi} dersinden, mevcut seviyeye uygun, "
+            f"tek bir soru oluştur. Soruyu, **{ulke}**'deki **{sinif}. sınıf** müfredatının zorluk derecesine göre ayarla. "
+            f"Öğrenci Durumu: Mevcut Seviye {seviye}"
         )
 
     elif soru_tipi == "Genel Sohbet":
@@ -79,16 +85,12 @@ def yapay_zeka_soru_uret(input_data, soru_tipi):
         sistem_talimati = SISTEM_TALIMATLARI_GENEL
         prompt_metni = input_data 
 
-    elif soru_tipi == "Plan Üretimi":
-        # input_data: {'seviye': 5, 'ders_adi': 'Matematik'}
-        seviye = input_data['seviye']
-        ders_adi = input_data['ders_adi']
-        
-        sistem_talimati = SISTEM_TALIMATLARI_PLAN_URET
-        prompt_metni = (
-            f"{ders_adi} dersinde seviye {seviye} olan bir öğrenci için 3 adet kısa, ölçülebilir ve motive edici görevden oluşan "
-            f"bir çalışma listesi (JSON dizisi) oluştur. Görev tipleri sadece şunlar olmalı: SORU, OKUMA, OZET, PROJE."
-        )
+    elif soru_tipi == "Zihin Haritası Taslağı":
+        prompt = f"""
+        Görev: Kullanıcının {input_data['ders_adi']} dersindeki **{input_data['konu_adi']}** konusuna odaklanarak, seviyesine ({input_data['seviye']}) uygun bir zihin haritası taslağı oluştur.
+        Format: Markdown formatını (Başlık, Alt Başlıklar ve Maddeler) kullanarak yanıt ver.
+        Odak: Temel kavramlar ve ileri düzey kavramları ayırarak net bir hiyerarşi kur. Yanıtında sadece taslağı sun, açıklama yapma.
+        """
 
     try:
         response = client.models.generate_content(

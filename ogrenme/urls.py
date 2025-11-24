@@ -17,8 +17,9 @@ urlpatterns = [
     path('test-ai/', views.test_ai_view, name='test_ai'), # Soru sorma sayfası
     path('cevapla/', views.cevap_kontrol_view, name='cevap_kontrol'), # Cevap kontrolü ve geri bildirim
     path('chat/', views.serbest_chat_view, name='serbest_chat'), # Dashboard sol paneldeki chat formunun işleyicisi
-    path('plan-uret/', views.plan_uret_view, name='plan_uret'), # Çalışma planı üretme ve kaydetme
     path('chat/yeni/', views.yeni_sohbet_baslat_view, name='yeni_sohbet_baslat'),
+    path('zihin-haritasi/', views.zihin_haritasi_view, name='zihin_haritasi'),
+    path('kaynak-uret/', views.kaynak_uret_view, name='kaynak_uret'), # <-- YENİ EKLEME
     
     # --------------------------------------------------
     # KİMLİK DOĞRULAMA (AUTHENTICATION)

@@ -1,0 +1,16 @@
+# Python Sanal Ortam Klasörleri
+venv/
+env/
+.venv/
+
+# Django ile ilgili dosyalar
+*.pyc
+__pycache__/
+media/
+
+# HASSAS VERİLERİN BULUNDUĞU DOSYALAR
+# API Anahtarınızın bulunduğu .env dosyasını takipten çıkarır
+.env
+
+# SQLite veritabanı dosyası (Paylaşılmamalı)
+db.sqlite3

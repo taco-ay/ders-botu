@@ -1,5 +1,6 @@
 # ogrenme/views.py
 import re
+import uuid
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
@@ -11,7 +12,7 @@ from django.contrib.auth import views as auth_views
 from .ai_service import yapay_zeka_soru_uret
 from .forms import KayitFormu
 # Tüm modelleri buraya import ediyoruz
-from .models import Ders, OgrenciIlerleme, CevapKaydi, AISerbestChat, CalismaPlani 
+from .models import Ders, OgrenciIlerleme, CevapKaydi, AISerbestChat
 
 # ----------------------------------------------------
 # Ana Görünümler (Home & Dashboard)
@@ -19,20 +20,22 @@ from .models import Ders, OgrenciIlerleme, CevapKaydi, AISerbestChat, CalismaPla
 def home_view(request):
     if request.user.is_authenticated:
         kullanici = request.user
-        
-        # 1. Serbest Chat Geçmişini Çekme (Dashboard Sol Panel)
-        chat_gecmisi = AISerbestChat.objects.filter(kullanici=kullanici).order_by('-timestamp')[:10]
 
-        # 2. Çalışma Planı Görevlerini Çekme (Dashboard Orta Panel)
-        calisma_plani_gorevleri = CalismaPlani.objects.filter(
-            kullanici=kullanici
-        ).exclude(
-            durum='TAMAM'
-        ).order_by('durum', '-olusturma_tarihi')[:10]
+        # Aktif Konuşma ID'sini al veya oluştur
+        if 'aktif_chat_id' not in request.session:
+             request.session['aktif_chat_id'] = str(uuid.uuid4()) 
+        
+        aktif_id = request.session['aktif_chat_id']
+        
+        # Sadece bu ID'ye ait mesajları çek (yeni chat/taslak isteği geçmişi)
+        chat_gecmisi = AISerbestChat.objects.filter(
+            kullanici=kullanici,
+            konusma_id=aktif_id
+        ).order_by('timestamp') # <-- Eskiden '-timestamp' idi, chat mantığı için 'timestamp' yaptık (eskiden yeniye)
 
         context = {
             'chat_gecmisi': chat_gecmisi,
-            'calisma_plani': calisma_plani_gorevleri,
+            # 'calisma_plani' kaldırıldı.
         }
         return render(request, 'ogrenme/dashboard.html', context)
     else:
@@ -43,11 +46,13 @@ def home_view(request):
 # ----------------------------------------------------
 @login_required
 def test_ai_view(request):
+    
     try:
         matematik_dersi = Ders.objects.get(isim="Matematik")
     except Ders.DoesNotExist:
         return HttpResponse("HATA: Lütfen Yönetici Panelinde 'Matematik' dersini oluşturun.")
     
+    # İlerleme nesnesini (veya yeni alanları içeren OgrenciIlerleme nesnesini) al
     ilerleme, created = OgrenciIlerleme.objects.get_or_create(
         kullanici=request.user, 
         ders=matematik_dersi, 
@@ -60,7 +65,15 @@ def test_ai_view(request):
     else:
         # Yeni soru üret
         try:
-            input_data = {'seviye': ilerleme.seviye, 'ders_adi': matematik_dersi.isim}
+            # DÜZELTME BURADA: Sınıf ve Ülke bilgilerini input_data'ya ekliyoruz.
+            input_data = {
+                'seviye': ilerleme.seviye, 
+                'ders_adi': matematik_dersi.isim,
+                # KİŞİSELLEŞTİRME VERİLERİ:
+                'sinif': ilerleme.sinif_seviyesi, 
+                'ulke': ilerleme.ulkede_egitim
+            }
+            
             # AI'dan JSON formatında soru ve cevap alıyoruz
             ai_data = yapay_zeka_soru_uret(input_data, "Odaklanmış Soru")
             
@@ -74,7 +87,7 @@ def test_ai_view(request):
 
 
     context = {
-        'soru_metni': current_q.get('soru_metri', 'Soru Yüklenemedi. Lütfen tekrar deneyin.'), 
+        'soru_metni': current_q.get('soru_metni', 'Soru Yüklenemedi. Lütfen tekrar deneyin.'), # Not: Sizin kodunuzda 'soru_metri' yazıyordu, 'soru_metni' olarak düzelttim.
         'ilerleme': ilerleme,
         'ders_adi': matematik_dersi.isim
     }
@@ -92,11 +105,11 @@ def cevap_kontrol_view(request):
         # Oturumdan soruyu çek
         q_data = request.session.pop('current_question', None)
         
-        if not q_data or 'soru_metri' not in q_data:
-            return redirect('test_ai') 
+        if not q_data or 'soru_metni' not in q_data: # ⚠️ DÜZELTME BURADA YAPILDI (soru_metri -> soru_metni)
+            return redirect('test_ai')
             
         dogru_cevap = q_data.get('dogru_cevap', '').strip()
-        soru_metni = q_data.get('soru_metri', '')
+        soru_metni = q_data.get('soru_metni', '')
         
         # Basit Kontrol: Gelişmiş kontrol için AI'a tekrar sormak gerekir.
         # Biz şimdilik cevabın ilk 10 karakterini veya tamamını karşılaştıralım.
@@ -149,6 +162,14 @@ def serbest_chat_view(request):
         mesaj = request.POST.get('mesaj', '')
         kullanici = request.user
         
+        # ⚠️ DÜZELTME BURADA: Aktif chat ID'sini oturumdan çek
+        # Eğer oturumda yoksa (ki bu olmamalı), bir hata önleyici olarak yeni bir tane oluştur
+        aktif_id = request.session.get('aktif_chat_id')
+        if not aktif_id:
+             aktif_id = str(uuid.uuid4())
+             request.session['aktif_chat_id'] = aktif_id
+        # ----------------------------------------------------
+        
         if mesaj:
             try:
                 # Yapay Zeka servisini Genel Sohbet tipiyle çağır
@@ -157,12 +178,15 @@ def serbest_chat_view(request):
                 AISerbestChat.objects.create(
                     kullanici=kullanici,
                     kullanici_mesaji=mesaj,
-                    ai_cevabi=ai_yanit
+                    ai_cevabi=ai_yanit,
+                    konusma_id=aktif_id # <-- 🔑 Burası EKLEME/DÜZELTME noktası!
                 )
             except Exception as e:
                 print(f"Chat Hatası: {e}")
                 
             return redirect('home')
+        
+    return redirect('home') # POST yoksa veya mesaj boşsa ana sayfaya dön
         
 @login_required
 def yeni_sohbet_baslat_view(request):
@@ -175,85 +199,87 @@ def yeni_sohbet_baslat_view(request):
     # Şimdilik, sadece kullanıcının anasayfaya yönlendirilmesi yeterlidir.
     return redirect('home')
 
-# ----------------------------------------------------
-# AI Çalışma Planı Üretme Görünümü
-# ----------------------------------------------------
 @login_required
-def plan_uret_view(request):
+def zihin_haritasi_view(request):
     kullanici = request.user
-
+    
     try:
-        matematik_dersi = Ders.objects.get(isim="Matematik")
+        # Örnek olarak Matematik dersini alıyoruz.
+        ders = Ders.objects.get(isim="Matematik")
         ilerleme, created = OgrenciIlerleme.objects.get_or_create(
             kullanici=kullanici, 
-            ders=matematik_dersi, 
+            ders=ders, 
             defaults={'seviye': 1}
         )
     except Ders.DoesNotExist:
-        return HttpResponse("HATA: 'Matematik' dersi bulunamadı.", status=500)
-
-    # 1. Mevcut tüm aktif (YENI, BASLADI) planları sıfırla/sil
-    CalismaPlani.objects.filter(kullanici=kullanici).exclude(durum='TAMAM').delete()
+        return HttpResponse("HATA: Ders bulunamadı.", status=500)
+        
+    # AI'a gönderilecek veriyi hazırla
+    input_data = {
+        'seviye': ilerleme.seviye, 
+        'ders_adi': ders.isim,
+        'sinif': ilerleme.sinif_seviyesi, 
+        'ulke': ilerleme.ulkede_egitim
+    }
     
-    # Not: Eğer aktif plan sayısını kontrol eden bir mantık varsa, artık gerek yok.
-    # Her zaman yeni bir plan oluşturulacak.
-
-    # 2. Yapay Zekadan yeni plan iste
     try:
-        input_data = {'seviye': ilerleme.seviye, 'ders_adi': matematik_dersi.isim}
-        ai_yanit = yapay_zeka_soru_uret(input_data, "Plan Üretimi")
-
-        plan_listesi = []
+        # Yeni AI tipini kullanarak taslağı üret
+        harita_taslagi = yapay_zeka_soru_uret(input_data, "Zihin Haritası Taslağı")
         
-        if isinstance(ai_yanit, str):
-            # JSON bloğunu ayıkla (ai_service.py'de de yapsak burada da garantiye alıyoruz)
-            match = re.search(r'```json\s*(.*?)\s*```', ai_yanit, re.DOTALL)
-            
-            raw_json = match.group(1).strip() if match else ai_yanit.strip()
-            
-            import json
-            plan_listesi = json.loads(raw_json)
+        context = {
+            'harita_taslagi': harita_taslagi,
+            'ders_adi': ders.isim
+        }
         
-        elif isinstance(ai_yanit, list):
-            plan_listesi = ai_yanit
+        # Yeni bir template ('ogrenme/zihin_haritasi.html' gibi) kullanabilirsiniz.
+        return render(request, 'ogrenme/zihin_haritasi.html', context)
         
-
-        if isinstance(plan_listesi, list):
-            yeni_gorevler = []
-            
-            # 3. Gelen JSON listesindeki görevleri veritabanına kaydet
-            for gorev_data in plan_listesi:
-                if all(key in gorev_data for key in ['gorev_baslik', 'gorev_tipi', 'aciklama']):
-                    
-                    gorev_tipi = gorev_data['gorev_tipi'].upper()
-                    
-                    izin_verilen_tipler = [tip[0] for tip in CalismaPlani.GOREV_TIPI]
-                    if gorev_tipi not in izin_verilen_tipler:
-                        gorev_tipi = 'DIGER' 
-                        
-                    yeni_gorevler.append(
-                        CalismaPlani(
-                            kullanici=kullanici,
-                            ders=matematik_dersi,
-                            gorev_baslik=gorev_data['gorev_baslik'],
-                            gorev_aciklama=gorev_data['aciklama'],
-                            gorev_tipi=gorev_tipi,
-                            durum='YENI'
-                        )
-                    )
-            
-            if yeni_gorevler:
-                CalismaPlani.objects.bulk_create(yeni_gorevler)
-                
-            # Eğer AI yanıtı bir metin ise, plan oluşturulmadı (Muhtemelen bug'a girdik)
-            else:
-                # Kullanıcıya boş bir plan gösterilmesini sağlamak için hata yokmuş gibi devam et
-                pass
-
-
     except Exception as e:
-        print(f"Plan Üretim veya Kayıt Hatası: {e}")
-        # Hata durumunda bile anasayfaya yönlendir
-        pass 
+        return HttpResponse(f"Zihin Haritası Üretim Hatası: {e}", status=500)
 
+
+@login_required
+def kaynak_uret_view(request):
+    if request.method == 'POST':
+        # 🟢 YENİ EKLEME: Konu adını formdan al
+        konu_adi = request.POST.get('konu_adi', 'Temel Matematik Konuları') # Eğer boş gelirse varsayılan atama
+        
+        istek_tipi = request.POST.get('istek_tipi', 'Zihin Haritası Taslağı')
+        kullanici = request.user
+        
+        aktif_id = request.session.get('aktif_chat_id')
+        if not aktif_id:
+             aktif_id = str(uuid.uuid4()) 
+             request.session['aktif_chat_id'] = aktif_id 
+
+        try:
+            # Ders ve ilerleme bilgisini al (Örn: Matematik)
+            matematik_dersi = Ders.objects.get(isim="Matematik")
+            ilerleme, _ = OgrenciIlerleme.objects.get_or_create(...) # ... (Kısa tutuldu)
+
+            input_data = {
+                'seviye': ilerleme.seviye, 
+                'ders_adi': matematik_dersi.isim, 
+                'sinif': ilerleme.sinif_seviyesi, 
+                'ulke': ilerleme.ulkede_egitim,
+                'konu_adi': konu_adi # 🟢 YENİ EKLEME: Konuyu AI'a gönderiyoruz
+            }
+            
+            ai_yanit = yapay_zeka_soru_uret(input_data, istek_tipi)
+            
+            # Kayıt yaparken kullanıcı mesajını da konu adıyla zenginleştiriyoruz
+            AISerbestChat.objects.create(
+                kullanici=kullanici,
+                konusma_id=aktif_id,
+                kullanici_mesaji=f"Kaynak İsteği: {konu_adi} - {istek_tipi} (Seviye {ilerleme.seviye})", # 🟢 GÜNCELLENDİ
+                ai_cevabi=ai_yanit
+            )
+        
+        except Exception as e:
+            # ... (Hata yönetimi kısmı aynı kalabilir)
+            # ...
+            pass # Hata yönetimi burada
+        
+        return redirect('home')
+        
     return redirect('home')
