@@ -16,16 +16,16 @@
     }
 
     .chat-body {
-        flex-grow: 1; /* Chat alanının form dışındaki tüm alanı kaplamasını sağla */
-        overflow-y: auto; /* Chat geçmişi için dikey kaydırma */
+        flex-grow: 1; 
+        overflow-y: auto;
         padding: 15px;
-        display: flex; /* İçerik sıralamasını ters çevirmek için flex kullan */
-        flex-direction: column-reverse; /* En yeni mesajı alta almak için */
+        display: flex; 
+        flex-direction: column; /* Mesajları eskiden yeniye sıralar */
     }
 
     /* Kaydırma çubuğunu gizle (isteğe bağlı) */
     .chat-body::-webkit-scrollbar { display: none; } 
-    .task-list-group { flex-grow: 1; overflow-y: auto; } /* Listeyi doldur ve kaydırılabilir yap */
+    .task-list-group { flex-grow: 1; overflow-y: auto; }
 </style>
 
 <h1 class="mb-4 text-center text-primary">Merhaba, {{ user.username }}!</h1>
@@ -38,8 +38,8 @@
                 <h5 class="mb-0">🧠 Yapay Zeka Chat (Serbest)</h5>
             </div>
             
-            <div class="chat-body">
-                {% for chat in chat_gecmisi %}
+            <div class="chat-body" id="serbest-chat-body">
+                {% for chat in serbest_chat_gecmisi %}
                     <div class="alert alert-primary mb-2 ms-5 py-2">
                         <small class="text-muted d-block">{{ user.username }}</small>
                         {{ chat.kullanici_mesaji|linebreaksbr }}
@@ -80,16 +80,29 @@
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0">✨ Kişiselleştirilmiş Kaynak Merkezi</h5>
             </div>
-            
-            <div class="chat-body">
-                <p class="text-center text-muted mt-auto">Oluşturduğunuz kaynaklar (Zihin Haritaları, Özetler) serbest chat geçmişi içinde görünecektir.</p>
+        
+            <div class="chat-body" id="kaynak-chat-body">
+                {% for kaynak in kaynak_merkezi_gecmisi %}
+                
+                    <div class="alert alert-primary mb-2 ms-5 py-2">
+                        <small class="text-muted d-block">{{ user.username }}</small>
+                        {{ kaynak.kullanici_mesaji|linebreaksbr }}
+                    </div>
+                
+                    <div class="alert alert-info mb-2 me-5 py-2">
+                        <small class="text-muted d-block">AI (Kaynak)</small>
+                        {{ kaynak.ai_cevabi|linebreaksbr|safe }} 
+                    </div>
+                {% empty %}
+                    <p class="text-center text-muted mt-auto">Henüz oluşturulmuş bir kaynağınız yok. Ayarlardan yeni bir kaynak oluşturun!</p>
+                {% endfor %}
             </div>
 
             <div class="card-footer bg-light p-2">
                 <p class="card-text small text-center mb-2">
                     Seviyenize ve sınıfınıza uygun özel taslaklar ve özetler oluşturun.
                 </p>
-                
+            
                 <button type="button" class="btn btn-success w-100" data-toggle="modal" data-target="#KaynakModal">
                     Kaynak Oluşturma Ayarları
                 </button>
@@ -166,4 +179,20 @@
     </div>
   </div>
 </div>
+
+<script>
+    function scrollChatToBottom(elementId) {
+        var element = document.getElementById(elementId);
+        if (element) {
+            // Kaydırma çubuğunu en aşağıya taşır
+            element.scrollTop = element.scrollHeight;
+        }
+    }
+
+    // Sayfa yüklendiğinde her iki chat panelini de aşağı kaydır
+    document.addEventListener('DOMContentLoaded', function() {
+        scrollChatToBottom('serbest-chat-body'); // Serbest Chat
+        scrollChatToBottom('kaynak-chat-body'); // Kaynak Merkezi
+    });
+</script>
 {% endblock %}

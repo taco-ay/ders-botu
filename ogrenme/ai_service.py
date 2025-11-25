@@ -86,10 +86,18 @@ def yapay_zeka_soru_uret(input_data, soru_tipi):
         prompt_metni = input_data 
 
     elif soru_tipi == "Zihin Haritası Taslağı":
+        
+        konu_adi = input_data.get('konu_adi', 'Temel Konular') # konu_adi bilgisini alıyoruz
+        
         prompt = f"""
-        Görev: Kullanıcının {input_data['ders_adi']} dersindeki **{input_data['konu_adi']}** konusuna odaklanarak, seviyesine ({input_data['seviye']}) uygun bir zihin haritası taslağı oluştur.
-        Format: Markdown formatını (Başlık, Alt Başlıklar ve Maddeler) kullanarak yanıt ver.
-        Odak: Temel kavramlar ve ileri düzey kavramları ayırarak net bir hiyerarşi kur. Yanıtında sadece taslağı sun, açıklama yapma.
+        GÖREV: Sadece akademik eğitim içeriği (programlama veya genel sohbet değil) üret. 
+        Kullanıcının {input_data['ders_adi']} dersindeki **{konu_adi}** konusuna odaklanarak, seviyesine ({input_data['seviye']}) uygun bir zihin haritası taslağı oluştur.
+        
+        YAPILMASI GEREKENLER:
+        1. Ana Başlık olarak sadece "{konu_adi}" kullan.
+        2. Format: Başlıklar, Alt Başlıklar ve Maddeler olmak üzere **Markdown** formatını (örneğin: #, ##, *, -) kullanarak yanıt ver. 
+        3. Odak: Temel kavramları, formülleri ve ileri düzey kavramları net bir hiyerarşi ile ayır.
+        4. Kısıtlama: Yanıtında sadece taslağı/özeti sun. Açıklama, giriş veya çıkış cümlesi **YAPMA**.
         """
 
     try:

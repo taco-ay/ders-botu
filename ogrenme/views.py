@@ -20,22 +20,27 @@ from .models import Ders, OgrenciIlerleme, CevapKaydi, AISerbestChat
 def home_view(request):
     if request.user.is_authenticated:
         kullanici = request.user
+        aktif_id = request.session.get('aktif_chat_id')
+        
+        # 1. Kaynak Merkezi Geçmişi (Sadece Kaynak İstekleri)
+        kaynak_merkezi_gecmisi = AISerbestChat.objects.filter(
+            kullanici=kullanici,
+            konusma_id=aktif_id,
+            kullanici_mesaji__contains="Kaynak İsteği" 
+        ).order_by('timestamp')
 
-        # Aktif Konuşma ID'sini al veya oluştur
-        if 'aktif_chat_id' not in request.session:
-             request.session['aktif_chat_id'] = str(uuid.uuid4()) 
-        
-        aktif_id = request.session['aktif_chat_id']
-        
-        # Sadece bu ID'ye ait mesajları çek (yeni chat/taslak isteği geçmişi)
-        chat_gecmisi = AISerbestChat.objects.filter(
+        # 2. Serbest Chat Geçmişi (Kaynak İstekleri DAHİL DEĞİL)
+        # Bu, Serbest Chat'i Kaynak Merkezi'nden ayırır.
+        serbest_chat_gecmisi = AISerbestChat.objects.filter(
             kullanici=kullanici,
             konusma_id=aktif_id
-        ).order_by('timestamp') # <-- Eskiden '-timestamp' idi, chat mantığı için 'timestamp' yaptık (eskiden yeniye)
+        ).exclude(
+            kullanici_mesaji__contains="Kaynak İsteği" # Kaynak İsteklerini hariç tut
+        ).order_by('timestamp')
 
         context = {
-            'chat_gecmisi': chat_gecmisi,
-            # 'calisma_plani' kaldırıldı.
+            'serbest_chat_gecmisi': serbest_chat_gecmisi, # YENİ değişken
+            'kaynak_merkezi_gecmisi': kaynak_merkezi_gecmisi,
         }
         return render(request, 'ogrenme/dashboard.html', context)
     else:
@@ -241,44 +246,53 @@ def zihin_haritasi_view(request):
 @login_required
 def kaynak_uret_view(request):
     if request.method == 'POST':
-        # 🟢 YENİ EKLEME: Konu adını formdan al
-        konu_adi = request.POST.get('konu_adi', 'Temel Matematik Konuları') # Eğer boş gelirse varsayılan atama
-        
+        konu_adi = request.POST.get('konu_adi', 'Temel Matematik Konuları') 
         istek_tipi = request.POST.get('istek_tipi', 'Zihin Haritası Taslağı')
         kullanici = request.user
         
+        # 🛑 KRİTİK DÜZELTME 🛑
+        # Aktif chat ID'sini çek. Eğer yoksa, bu bir hatadır, çünkü kaynak üretimi 
+        # sadece aktif bir sohbet varken yapılmalıdır.
         aktif_id = request.session.get('aktif_chat_id')
+        
+        # Eğer aktif chat ID yoksa, yeni bir tane oluşturup o ID'yi kullan. 
+        # (Bu, chat_gecmisi'nin de bu yeni ID'yi çekmesini sağlayacak.)
         if not aktif_id:
              aktif_id = str(uuid.uuid4()) 
              request.session['aktif_chat_id'] = aktif_id 
-
+        # ----------------------
+        
         try:
-            # Ders ve ilerleme bilgisini al (Örn: Matematik)
+            # ... (Ders ve ilerleme çekme kodları aynı kalır) ...
             matematik_dersi = Ders.objects.get(isim="Matematik")
-            ilerleme, _ = OgrenciIlerleme.objects.get_or_create(...) # ... (Kısa tutuldu)
+            ilerleme, _ = OgrenciIlerleme.objects.get_or_create(
+                kullanici=kullanici, 
+                ders=matematik_dersi, 
+                defaults={'seviye': 1, 'sinif_seviyesi': '10. Sınıf', 'ulkede_egitim': 'Türkiye'}
+            )
 
             input_data = {
                 'seviye': ilerleme.seviye, 
                 'ders_adi': matematik_dersi.isim, 
                 'sinif': ilerleme.sinif_seviyesi, 
                 'ulke': ilerleme.ulkede_egitim,
-                'konu_adi': konu_adi # 🟢 YENİ EKLEME: Konuyu AI'a gönderiyoruz
+                'konu_adi': konu_adi
             }
             
             ai_yanit = yapay_zeka_soru_uret(input_data, istek_tipi)
             
-            # Kayıt yaparken kullanıcı mesajını da konu adıyla zenginleştiriyoruz
+            # Kaydı, mevcut aktif ID ile yap
             AISerbestChat.objects.create(
                 kullanici=kullanici,
-                konusma_id=aktif_id,
-                kullanici_mesaji=f"Kaynak İsteği: {konu_adi} - {istek_tipi} (Seviye {ilerleme.seviye})", # 🟢 GÜNCELLENDİ
+                konusma_id=aktif_id, # Aktif olan ID'yi kullanıyoruz
+                kullanici_mesaji=f"Kaynak İsteği: {konu_adi} - {istek_tipi} (Seviye {ilerleme.seviye})",
                 ai_cevabi=ai_yanit
             )
         
         except Exception as e:
-            # ... (Hata yönetimi kısmı aynı kalabilir)
-            # ...
-            pass # Hata yönetimi burada
+            # Hata yönetimi (loglama veya kullanıcıya gösterme)
+            print(f"Kaynak Üretim Hatası: {e}")
+            pass
         
         return redirect('home')
         
