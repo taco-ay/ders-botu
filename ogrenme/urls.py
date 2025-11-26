@@ -20,6 +20,8 @@ urlpatterns = [
     path('chat/yeni/', views.yeni_sohbet_baslat_view, name='yeni_sohbet_baslat'),
     path('zihin-haritasi/', views.zihin_haritasi_view, name='zihin_haritasi'),
     path('kaynak-uret/', views.kaynak_uret_view, name='kaynak_uret'), # <-- YENİ EKLEME
+    path('arkadas-ekle/', views.arkadas_ekle_view, name='arkadas_ekle'), 
+    
     
     # --------------------------------------------------
     # KİMLİK DOĞRULAMA (AUTHENTICATION)

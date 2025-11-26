@@ -30,6 +30,20 @@
 
 <h1 class="mb-4 text-center text-primary">Merhaba, {{ user.username }}!</h1>
 
+<span style="color: red; font-weight: bold; margin-left: 15px; border: 1px dashed red; padding: 3px;">
+    Arkadaş Kodunuz: {{ kullanici_arkadas_kodu }}
+</span>
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    {% endfor %}
+{% endif %}
+
 <div class="row g-3">
     
     <div class="col-md-4">
@@ -121,16 +135,18 @@
                 <p>Şu anki ilerlemenize göre yeni bir soru için hemen başlayın:</p>
                 <a href="{% url 'test_ai' %}" class="btn btn-success w-100 mb-4">Yeni Soru Çöz (Matematik)</a>
                 
-                <h6 class="text-danger">Sosyal ve Chat Geçişi</h6>
-                <p class="text-muted small">Burada arkadaş ekleme, hızlı mesajlaşma gibi sosyal özellikler yer alacak (Arkadaş kodu sistemi).</p>
-                <form method="POST" action=""> 
-                    <div class="input-group mb-3">
+                <h6 class="text-danger">Sosyal ve Arkadaşlık</h6>
+                <p class="text-muted small">Arkadaş eklemek için kullanıcı adını/kodunu girin.</p>
+                
+                <form method="POST" action="{% url 'arkadas_ekle' %}"> 
+                    <div class="input-group mb-4">
                         {% csrf_token %}
-                        <input type="text" class="form-control" placeholder="Arkadaş Kodu">
-                        <button class="btn btn-outline-secondary" type="button">Ekle</button>
+                        <input type="text" class="form-control" name="arkadas_kodu" placeholder="Kullanıcı Adı/Kodu Girin" required>
+                        <button class="btn btn-outline-secondary" type="submit">İstek Gönder</button>
                     </div>
                 </form>
-                <a href="#" class="btn btn-outline-dark w-100 disabled">Hızlı Chat Sayfasına Git</a>
+
+                <a href="#" class="btn btn-outline-dark w-100 disabled">Hızlı Chat Sayfasına Git (Yakında)</a>
             </div>
         </div>
     </div>

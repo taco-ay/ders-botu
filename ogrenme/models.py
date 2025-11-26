@@ -22,15 +22,20 @@ class Ders(models.Model):
 # 2. Öğrenci İlerleme Modeli (Student Progress)
 # ----------------------------------------------------
 class OgrenciIlerleme(models.Model):
-    kullanici = models.OneToOneField(User, on_delete=models.CASCADE)
-    ders = models.ForeignKey(Ders, on_delete=models.CASCADE)
+    kullanici = models.OneToOneField(User, on_delete=models.CASCADE) 
+    
+    # 💥 DÜZELTME: Eski satırların boş kalabilmesi için null/blank eklendi.
+    ders = models.ForeignKey(Ders, on_delete=models.CASCADE, null=True, blank=True)
+    
     seviye = models.IntegerField(default=1)
     cozulen_soru_sayisi = models.IntegerField(default=0)
     son_aktiflik = models.DateTimeField(auto_now=True)
     
-    # YENİ EKLENTİLER (Buraya taşındı ve düzeltildi)
     sinif_seviyesi = models.IntegerField(default=5, verbose_name="Sınıf Seviyesi")
     ulkede_egitim = models.CharField(max_length=50, default="Türkiye", verbose_name="Eğitim Aldığı Ülke")
+
+    # 🥳 EKLENEN ALAN
+    arkadas_kodu = models.CharField(max_length=6, unique=True, null=True, blank=True)
 
     class Meta:
         unique_together = ('kullanici', 'ders')
@@ -76,4 +81,39 @@ class AISerbestChat(models.Model):
 
     def __str__(self):
         return f"{self.kullanici.username} - {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
+
+class ArkadaslikIstegi(models.Model):
+    # İstek gönderen kullanıcı
+    gonderen = models.ForeignKey(User, related_name='gonderilen_istekler', on_delete=models.CASCADE)
+    # İstek alan kullanıcı
+    alici = models.ForeignKey(User, related_name='alinan_istekler', on_delete=models.CASCADE)
+    # İstek kabul edildi mi?
+    kabul_edildi = models.BooleanField(default=False)
+    olusturma_tarihi = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.gonderen.username} -> {self.alici.username} ({'Kabul' if self.kabul_edildi else 'Bekliyor'})"
+
+class ChatOdasi(models.Model):
+    # Birçok kullanıcı tek bir odada olabilir (Örn: Grup chat'i, ama şimdilik 1'e 1 chat için kullanacağız)
+    katilimcilar = models.ManyToManyField(User, related_name='chat_odalari')
+    olusturma_tarihi = models.DateTimeField(auto_now_add=True)
+    
+    # Odaları URL'de kullanmak için benzersiz bir isim (UUID yerine basit id de yeterli)
+    def __str__(self):
+        usernames = ", ".join([user.username for user in self.katilimcilar.all()])
+        return f"Chat Odası ({self.pk}): {usernames}"
+
+class OdaMesaji(models.Model):
+    oda = models.ForeignKey(ChatOdasi, related_name='mesajlar', on_delete=models.CASCADE)
+    gonderen = models.ForeignKey(User, on_delete=models.CASCADE)
+    icerik = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('timestamp',) # Mesajları kronolojik olarak sıralar
+
+    def __str__(self):
+        return f"{self.gonderen.username}: {self.icerik[:20]}..."
+    
 
